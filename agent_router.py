@@ -1,22 +1,13 @@
-# agent_router.py
+from tools.essay_tool import run_essay_tool
+from tools.fitness_tool import run_fitness_tool
+from tools.social_tool import run_social_tool
 
-from langchain.agents import initialize_agent
-from tools.fitness_tool import get_fitness_tool
-from tools.essay_tool import get_essay_tool
-from tools.social_tool import get_social_tool
-
-
-def get_agent(task_type):
-    tools_map = {
-        "Fitness Plan Generator": get_fitness_tool(),
-        "Essay Generator": get_essay_tool(),
-        "Social Media Content Generator": get_social_tool()
-    }
-
-    selected_tool = tools_map.get(task_type)
-
-    return initialize_agent(
-        tools=[selected_tool],
-        agent="zero-shot-react-description",
-        verbose=True
-    )
+def run_agent(task_type: str, prompt: str) -> str:
+    if task_type == "Essay Generator":
+        return run_essay_tool(prompt)
+    elif task_type == "Fitness Plan Generator":
+        return run_fitness_tool(prompt)
+    elif task_type == "Social Media Content Generator":
+        return run_social_tool(prompt)
+    else:
+        raise ValueError("Unknown task type")

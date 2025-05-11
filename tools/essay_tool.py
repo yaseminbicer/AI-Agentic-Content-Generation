@@ -1,25 +1,31 @@
-from langchain.agents import Tool
-from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from langchain.llms import HuggingFaceHub
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from shared_llm import model, tokenizer
 
-
-def get_essay_tool():
+def run_essay_tool(prompt: str) -> str:
     retriever = Chroma(
         persist_directory="vectorstores/essay",
         embedding_function=HuggingFaceEmbeddings()
     ).as_retriever()
 
-    llm = HuggingFaceHub(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-        model_kwargs={"temperature": 0.7}
-    )
+    docs = retriever.get_relevant_documents(prompt)
+    context = "\n".join([doc.page_content for doc in docs])
 
-    chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+    chat_messages = [
+        {"role": "system", "content": "You are an expert IELTS academic essay writer."},
+        {"role": "user", "content": f"Context:\n{context}\n\nUser Prompt:\n{prompt}"}
+    ]
 
-    return Tool(
-        name="Essay Generator",
-        func=chain.run,
-        description="Generate academic essays using IELTS training data"
+    prompt_text = tokenizer.apply_chat_template(chat_messages, tokenize=False, add_generation_prompt=True)
+    inputs = tokenizer(prompt_text, return_tensors="pt").to(model.device)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=512,
+        do_sample=True,
+        temperature=0.5,
+        top_k=50,
+        top_p=0.95
     )
+    response = tokenizer.decode(outputs[0][inputs.input_ids.shape[-1]:], skip_special_tokens=True)
+
+    return response.strip()
